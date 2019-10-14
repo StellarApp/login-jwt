@@ -5,41 +5,45 @@ const path = require("path");
 const db = require("./db");
 const { User } = db.models;
 const jwt = require("jwt-simple");
-
+const port = process.env.PORT || 3000;
+const dotenv = require('dotenv').config();
 // app.use(
 //   require("express-session")({
 //     secret: process.env.SECRET
 //   })
 // );
-const port = process.env.PORT || 3000;
-db.syncAndSeed().then(() =>
-  app.listen(port, () => console.log(`listening on port ${port}`))
-);
+
+// db.syncAndSeed().then(() =>
+// app.listen(port, () => console.log(`listening on port ${port}`))
+// );
+
+app.listen(port, () => console.log(`listening on port ${port}`))
+
+app.get("/", (req, res, next) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
 
 app.use("/dist", express.static(path.join(__dirname, "dist")));
 
 app.post("/api/sessions", async (req, res, next) => {
-  try {
+
     const { email, password } = req.body;
 
-    const user = await User.findOne({
+    User.findOne({raw: true},{
       where: {
         email,
         password
       }
-    });
-
-    if (user) {
+    }).then( user => {
+      if(!user){
+        throw({status: 401})
+      }
       const token = jwt.encode({ id: user.id }, process.env.SECRET);
-      res.send({ token });
-    } else {
-      throw { status: 401 };
-    }
-  } catch (error) {
-    next(error);
-  }
+      return res.send({token})
+    })
+    .catch(err => next(err))
 
-  // User.findOne({
+  // User.findOne({raw: true},{
   //   where: {
   //     email: req.body.email,
   //     password: req.body.password
@@ -56,34 +60,36 @@ app.post("/api/sessions", async (req, res, next) => {
 });
 
 app.use((req, res, next) => {
-  console.log("use", req.headers.authorization)
   const auth = req.headers.authorization;
 
-  if (auth) {
-    const {id} = jwt.decode(auth, process.env.SECRET);
-    User.findByPk(id)
-      .then(user => {
-        req.user = user;
-        next();
-      })
-      .catch(next);
+  if (!auth) {
+    return next();
   }
-  return next();
+
+  const {id} = jwt.decode(auth, process.env.SECRET);
+
+  User.findByPk(id)
+    .then(user => {
+      req.user = user.dataValues;
+      next();
+    })
+    .catch(next);
 });
 
 app.get("/api/sessions", (req, res, next) => {
-
   if (req.user) {
     return res.send(req.user);
   }
   next({ status: 401 });
 });
 
-app.delete("/api/sessions", (req, res, next) => {
-  req.session.destroy();
-  res.sendStatus(204);
-});
+// app.delete("/api/sessions", (req, res, next) => {
+//   req.session.destroy();
+//   res.sendStatus(204);
+// });
 
-app.get("/", (req, res, next) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
+
+
+// app.use((err, req, res, next) => {
+//   res.status(err.status || 500).send({error: err})
+// })
