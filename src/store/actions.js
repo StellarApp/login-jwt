@@ -1,4 +1,4 @@
-import { SET_AUTH, SET_TOKEN, DELETE_AUTH } from './constants';
+import { SET_AUTH,  DELETE_AUTH } from './constants';
 import axios from 'axios';
 
 const setAuth = (auth) => {
@@ -6,13 +6,6 @@ const setAuth = (auth) => {
         type: SET_AUTH, 
         auth
       }
-}
-
-const setToken = (token) => {
-    return {
-        type: SET_TOKEN, 
-        token
-    }
 }
 
 const deleteAuth = () => {
@@ -25,8 +18,8 @@ const deleteAuth = () => {
 const attemptLogin = (credentials, history)=> {
   return async(dispatch)=> {
     const {token} = (await axios.post('/api/sessions', credentials)).data;
-    window.localStorage.setItem('token', token)
-    dispatch(setToken(token));
+    window.localStorage.setItem('token', token);
+    await dispatch(attemptSessionLogin());
     history.push('/');
   };
 };
@@ -42,7 +35,7 @@ const attemptSessionLogin = ()=> {
 
 const logout = ()=> {
   return async(dispatch)=> {
-    await axios.delete('/api/sessions');
+    window.localStorage.removeItem('token');
     dispatch(deleteAuth());
   };
 };
